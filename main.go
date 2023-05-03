@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 )
 
 const (
@@ -72,6 +73,12 @@ func run(filename string, skipPreview bool) (string, error) {
 	if skipPreview {
 		return outName, nil
 	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+	}(outName)
 
 	return outName, preview(outName)
 }
@@ -123,5 +130,9 @@ func preview(fname string) error {
 	}
 
 	// Open the file using default program
-	return exec.Command(cPath, cParams...).Run()
+	err = exec.Command(cPath, cParams...).Run()
+
+	// Give the browser some time to open the file before deleting it
+	time.Sleep(2 * time.Second)
+	return err
 }
