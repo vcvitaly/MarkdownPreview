@@ -32,7 +32,7 @@ func TestParseContent(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	resultFile, err := run(inputFile)
+	resultFile, err := run(inputFile, true)
 	if err != nil {
 		t.Fatal(err)
 	}

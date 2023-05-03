@@ -8,6 +8,8 @@ import (
 	"github.com/russross/blackfriday/v2"
 	"log"
 	"os"
+	"os/exec"
+	"runtime"
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 func main() {
 	// Parse flags
 	filename := flag.String("file", "", "Markdown file to preview")
+	skipPreview := flag.Bool("s", false, "Skip auto-preview")
 	flag.Parse()
 	// If user did not provide input file, show usage
 	if *filename == "" {
@@ -35,14 +38,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	outName, err := run(*filename)
+	outName, err := run(*filename, *skipPreview)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 	fmt.Println(outName)
 }
 
-func run(filename string) (string, error) {
+func run(filename string, skipPreview bool) (string, error) {
 	// Read all the data from the input file and check for errors
 	input, err := os.ReadFile(filename)
 	if err != nil {
@@ -62,7 +65,15 @@ func run(filename string) (string, error) {
 
 	outName := temp.Name()
 
-	return outName, saveHTML(outName, htmlData)
+	if err := saveHTML(outName, htmlData); err != nil {
+		return "", err
+	}
+
+	if skipPreview {
+		return outName, nil
+	}
+
+	return outName, preview(outName)
 }
 
 func parseContent(input []byte) []byte {
@@ -83,4 +94,34 @@ func parseContent(input []byte) []byte {
 func saveHTML(outFname string, data []byte) error {
 	// Write the bytes to the file
 	return os.WriteFile(outFname, data, 0644)
+}
+
+func preview(fname string) error {
+	cName := ""
+	cParams := []string{}
+
+	// Define executable based on OS
+	switch runtime.GOOS {
+	case "linux":
+		cName = "xdg-open"
+	case "windows":
+		cName = "cmd.exe"
+		cParams = []string{"/C", "start"}
+	case "darwin":
+		cName = "open"
+	default:
+		return fmt.Errorf("OS not supported")
+	}
+
+	// Append filename to parameters slice
+	cParams = append(cParams, fname)
+
+	// Locate executable in PATH
+	cPath, err := exec.LookPath(cName)
+	if err != nil {
+		return err
+	}
+
+	// Open the file using default program
+	return exec.Command(cPath, cParams...).Run()
 }
